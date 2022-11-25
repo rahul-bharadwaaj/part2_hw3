@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Force graph</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+    svg {
+        width: 100vw;
+        height: 100vh;
+        margin: 0;
+    }
+    circle{
+    fill-opacity: .9;
+}
+line{
+    stroke:#440707;
+    stroke-opacity:0.6;
+}
+h2,h3{
+    font-size: 20;
+    font-family: sans-serif;
+    align-items: center;
+}
+.inactive{
+    opacity: .1;
+}
+    </style>
+</head>
+<body>
+    <div>
+        <h2>Force graph</h2>
+        <h3>Rahul Bharadwaaj id:02044827 , Country</h3>
+    </div>
+    <script>
+      d3.json("publication_network.json").then(function (data){
+        let svg = d3.select('body').append("svg").attr("viewBox","0 0 1000 800")
+
+        simulate(data,svg) 
+    })
+    function simulate(data,svg)
+{
+    const width = parseInt(svg.attr("viewBox").split(' ')[2])
+    const height = parseInt(svg.attr("viewBox").split(' ')[3])
+    const main_group = svg.append("g")
+        .attr("transform", "translate(0, 50)")
+
+   
+    let node_degree={}; 
+   d3.map(data.links, (d)=>{
+       if(node_degree.hasOwnProperty(d.source)){
+        node_degree[d.source]++
+       }
+       else{
+        node_degree[d.source]=0
+       }
+       if(node_degree.hasOwnProperty(d.target)){
+        node_degree[d.target]++
+    }
+        else{
+            node_degree[d.target]=0
+        }
+   })
+       //let Publishers_dict={}
+       //const Publishers=[...new Set(data.nodes.map(d=>d.Publisher.toString()))].map((d,i:number))
+    const scale_radius =d3.scaleLinear()
+   .domain(d3.extent(Object.values(node_degree)))
+   .range([3,12])
+                        
+    
+    const link_elements = main_group.append("g")
+        .attr('transform',`translate(${width/2},${height/2})`)
+        .selectAll(".line")
+        .data(data.links)
+        .enter()
+        .append("line")
+    const TreatCountryClass = (Country)=>{
+        let temp = Country.toString().split('').join('');
+        temp = temp.split(".").join('');
+        temp = temp.split(",").join('');
+        temp = temp.split("/").join('');
+        return "gr"+temp
+    }
+
+    const node_elements = main_group.append("g")
+        .attr('transform', `translate(${width / 2},${height / 2})`)
+        .selectAll(".circle")
+        .data(data.nodes)
+        .enter()
+        .append('g')
+        .attr("class",function (d){return TreatCountryClass(d.Country)})
+       .on("mouseover",function (d,data){
+        d3.selectAll("Country").text(data.Country)
+        node_elements.classed("inactive",true)
+        const selected_class = d3.select(this).attr("class").split(" ")[0];
+        console.log(selected_class)
+        d3.selectAll("."+selected_class)
+        .classed("inactive",false)
+       
+    })
+    .on("mouseout",function(d,data){
+    
+        d3.selectAll("#Paper_Title").text("")
+        d3.selectAll("."+selected_class)
+        .classed("inactive",false)
+    })
+    node_elements.append("circle")
+        .attr("r",  (d,Citations)=>{
+           if (node_degree[d.id]!==undefined){
+            return scale_radius(node_degree[d.id])
+           }
+           
+           else{
+            return scale_radius(0)
+           }
+        })
+       
+    
+
+   
+
+    let ForceSimulation = d3.forceSimulation(data.nodes)
+        .force("collide",
+            d3.forceCollide().radius((d,i)=>{return scale_radius(node_degree[d.id])*1.2}))
+        .force("x", d3.forceX())
+        .force("y", d3.forceY())
+        .force("charge", d3.forceManyBody())
+        .force("link",d3.forceLink(data.links)
+            .id(function(d){
+                return d.id
+            })
+
+        )
+        .on("tick", ticked);
+
+    function ticked()
+    {
+    node_elements
+    .attr('transform', function(d){return `translate(${d.x}, ${d.y})`})
+        link_elements
+        .attr("x1", function(d){return d.source.x})
+            .attr("x2", function(d){return d.target.x})
+            .attr("y1", function(d){return d.source.y})
+            .attr("y2", function(d){return d.target.y})
+
+        }
+
+    svg.call(d3.zoom()
+        .extent([[0, 0], [width, height]])
+        .scaleExtent([1, 8])
+        .on("zoom", zoomed));
+    function zoomed({transform}) {
+        main_group.attr("transform", transform);
+    }
+
+
+
+
+}
+    </script>
+
+    
+</body>
+</html>
